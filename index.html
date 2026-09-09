@@ -1039,7 +1039,9 @@ window.addEventListener('keydown', triggerAmbientAudio);
                 if (!states.bathroomDoor.open) colliders.push({ minX: -6.0, maxX: -4.0, minZ: 3.85, maxZ: 4.15 }); 
 
                 // Property fence hard collision loops
-                // 1. FRONT PERIMETER FENCE: Split into Left and Right chunks to leave a clear 2m gap for the doorway
+                // --- PROPERTY FENCE CORRECTION GRID ---
+
+// 1. FRONT PERIMETER FENCE: Split into Left and Right chunks to leave a clear 2m gap for the doorway
 colliders.push({ minX: -14.0, maxX: -4.0, minZ: -12.2, maxZ: -11.8 }); // Left side front block
 colliders.push({ minX: -2.0, maxX: 14.0, minZ: -12.2, maxZ: -11.8 });  // Right side front block
 
@@ -1056,6 +1058,46 @@ colliders.push({ minX: -12.2, maxX: 12.2, minZ: -22.5, maxZ: -22.2 });
                 if (!states.isSittingOnToilet) colliders.push({ minX: -4.4, maxX: -3.6, minZ: 10.2, maxZ: 11.4 });  
             }
             updateCollidersList();
+//here
+            function spawnSpreadOutBackgroundForest(treeCount = 25) { // Lowered count slightly to allow breathing room
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d28, roughness: 0.9 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5c32, roughness: 0.7 });
+
+    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 2.0, 8);
+    const leafGeo = new THREE.BoxGeometry(1.5, 1.8, 1.5);
+
+    for (let i = 0; i < treeCount; i++) {
+        const treeGroup = new THREE.Group();
+
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 1.0;
+        trunk.castShadow = true;
+        treeGroup.add(trunk);
+
+        const leaves = new THREE.Mesh(leafGeo, leafMat);
+        leaves.position.y = 2.4;
+        leaves.castShadow = true;
+        treeGroup.add(leaves);
+
+        // --- SPREAD OUT EXTERIOR BOUNDS ---
+        // Expanded X from (-15, 15) to (-30, 30) so they fan out far past the sides of your property
+        // Expanded Z from (-35, -23) to (-45, -24) to push them deeper and spread them thin over the horizon
+        const randomX = THREE.MathUtils.randFloat(-30.0, 30.0); 
+        const randomZ = THREE.MathUtils.randFloat(-45.0, -24.0); 
+
+        treeGroup.position.set(randomX, 0.0, randomZ);
+
+        // Organic random scaling variations
+        const randomScale = THREE.MathUtils.randFloat(0.8, 1.6);
+        treeGroup.scale.set(randomScale, randomScale, randomScale);
+        treeGroup.rotation.y = Math.random() * Math.PI;
+
+        scene.add(treeGroup);
+    }
+}
+
+// Clear your old tree loop function and run this to initialize the spread profile!
+spawnSpreadOutBackgroundForest(25);
 
             function checkCollisionMatrix(testX, testZ, radius) {
 
