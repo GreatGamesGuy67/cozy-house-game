@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Room - Refined Environment</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+
+            display: block;
+        }
+
+        /* Proximity Interaction Prompt HUD */
+        #proximity-prompt {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: 1px solid #00ffcc;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            display: none;
+
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+            text-align: center;
+            z-index: 10;
+        }
+
+        /* Hotbar HUD Styling */
+        #hotbar-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            background: rgba(15, 15, 15, 0.9);
+            padding: 8px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+            pointer-events: none;
+
+            z-index: 10;
+        }
+
+        .hotbar-slot {
+            width: 52px;
+            height: 52px;
+            background: rgba(30, 30, 30, 0.8);
+            border: 2px solid #444;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.15s ease;
+        }
+
+
+        .hotbar-slot.active {
+            border-color: #00ffcc;
+            background: rgba(0, 255, 204, 0.12);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.3);
+            transform: scale(1.04);
+        }
+
+        .slot-number {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 9px;
+            color: #666;
+        }
+
+        .slot-icon {
+            font-size: 20px;
+        }
+
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Smartphone UI Panel */
+        #phone-wrapper {
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+
+            width: 310px;
+            height: 580px;
+            background: #000;
+            border: 10px solid #222;
+            border-radius: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+            border-bottom-width: 14px;
+        }
+
+        #phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+
+            color: white;
+            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .phone-status-bar {
+            height: 24px;
+            padding: 4px 16px 0 16px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+            background: rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+
+        .phone-content-area {
+            flex: 1;
+
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header Navigation Panel to easily Leave Apps */
+        .app-header-nav {
+            height: 34px;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #2d2d2d;
+            flex-shrink: 0;
+        }
+
+        .back-app-btn {
+            background: #2d2d2d;
+
+            border: 1px solid #444;
+            color: #00ffcc;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .back-app-btn:hover {
+            background: #444;
+        }
+
+        .phone-home-bar {
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.5);
+            cursor: pointer;
+
+            flex-shrink: 0;
+        }
+        .home-indicator {
+            width: 110px;
+            height: 4px;
+            background: #fff;
+            border-radius: 2px;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px 12px;
+            padding: 15px 5px;
+        }
+        .app-icon-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            cursor: pointer;
+        }
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-bottom: 4px;
+        }
+        .app-label {
+            font-size: 10px;
+            text-align: center;
+            color: #fff;
+        }
+
+
+        .app-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .app-view.active { display: flex; }
+
+        #view-safari {
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .dial-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+
+            gap: 12px;
+            padding: 10px 20px;
+            justify-items: center;
+        }
+        .dial-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .dial-btn:hover { background: #333; }
+        
+        .dial-actions-row {
+
+            grid-column: span 3;
+            display: flex;
+            gap: 16px;
+            margin-top: 5px;
+        }
+        .call-action-btn {
+            width: 46px;
+            height: 46px;
+            background: #4cd964;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .clear-action-btn {
+            width: 46px;
+            height: 46px;
+
+            background: #ff3b30;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .news-item {
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #ffcc00;
+        }
+        .news-title { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+        .news-desc { font-size: 10px; color: #aaa; }
+
+
+        .weather-header { text-align: center; margin-bottom: 12px; }
+        .weather-day-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 5px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .weather-temp { font-weight: bold; color: #00ffcc; }
+
+        .msg-bubble {
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            max-width: 80%;
+
+        }
+        .msg-inbound { background: #333; align-self: flex-start; }
+        .msg-outbound { background: #007aff; align-self: flex-end; }
+
+        .safari-tab-bar {
+            display: flex;
+            align-items: center;
+            background: #222;
+            padding: 4px;
+            gap: 4px;
+            overflow-x: auto;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+        .safari-tab {
+            background: #444;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .safari-tab.active { background: #007aff; }
+        .safari-tab .close-tab-btn {
+            font-weight: bold;
+            color: #ff3b30;
+            cursor: pointer;
+        }
+        .add-tab-btn {
+            background: #555;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .safari-iframe-container {
+            flex: 1;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        .safari-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            display: block;
+        }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<!-- The audio element is kept hidden and configured to loop -->
+<audio id="game-ambient" src="music/ambient.mp3" loop></audio>
+    <div id="canvas-container"></div>
+    <div id="crosshair"></div>
+    <div id="proximity-prompt">Press <span style="color: #00ffcc;">E</span> to Interact</div>
+
+    <!-- Phone Wrapper Overlay -->
+    <div id="phone-wrapper">
+        <div id="phone-screen">
+            <div class="phone-status-bar">
+                <span id="phone-time">12:00 PM</span>
+                <span>📶 🔋 100%</span>
+            </div>
+            
+            <div class="app-header-nav" id="phone-app-header" style="display:none;">
+                <button class="back-app-btn" onclick="returnToPhoneHome()">❮ Exit App</button>
+
+                <span id="app-header-title" style="font-size:11px; margin-left:10px; color:#aaa; font-weight:600;">App</span>
+            </div>
+            
+            <div class="phone-content-area" id="phone-main-content">
+                <div id="view-home" class="app-view active">
+                    <div class="apps-grid">
+                        <div class="app-icon-wrapper" onclick="openPhoneApp('call', 'Phone Keypad')">
+                            <div class="app-icon" style="background:#4cd964;">📞</div>
+                            <div class="app-label">Call</div>
+                        </div>
+                        <div class="app-icon-wrapper" onclick="openPhoneApp('news', 'Live Bulletins')">
+                            <div class="app-icon" style="background:#ff9500;">📰</div>
+                            <div class="app-label">News</div>
+                        </div>
+                        <div class="app-icon-wrapper" onclick="openPhoneApp('weather', '7-Day Forecast')">
+                            <div class="app-icon" style="background:#5ac8fa;">☀️</div>
+                            <div class="app-label">Weather</div>
+                        </div>
+                        <div class="app-icon-wrapper" onclick="openPhoneApp('messages', 'Secure Chat')">
+
+                            <div class="app-icon" style="background:#007aff;">💬</div>
+                            <div class="app-label">Messages</div>
+                        </div>
+                        <div class="app-icon-wrapper" onclick="openPhoneApp('safari', 'Web Browser')">
+                            <div class="app-icon" style="background:#1473e6;">🌐</div>
+                            <div class="app-label">Safari</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-call" class="app-view">
+                    <div style="text-align:center; margin:5px 0; font-size:15px; font-weight:bold; min-height:18px; color:#00ffcc;" id="dial-display">---</div>
+                    <div style="text-align:center; margin-bottom:5px; font-size:10px; min-height:14px; color:#aaa;" id="dial-status">Ready</div>
+                    <div class="dial-pad">
+                        <div class="dial-btn" onclick="dialNum('1')">1</div>
+                        <div class="dial-btn" onclick="dialNum('2')">2</div>
+                        <div class="dial-btn" onclick="dialNum('3')">3</div>
+                        <div class="dial-btn" onclick="dialNum('4')">4</div>
+                        <div class="dial-btn" onclick="dialNum('5')">5</div>
+
+                        <div class="dial-btn" onclick="dialNum('6')">6</div>
+                        <div class="dial-btn" onclick="dialNum('7')">7</div>
+                        <div class="dial-btn" onclick="dialNum('8')">8</div>
+                        <div class="dial-btn" onclick="dialNum('9')">9</div>
+                        <div class="dial-btn" onclick="dialNum('*')">*</div>
+                        <div class="dial-btn" onclick="dialNum('0')">0</div>
+                        <div class="dial-btn" onclick="dialNum('#')">#</div>
+                        <div class="dial-actions-row">
+                            <div class="call-action-btn" onclick="dialAction('CALL')">📞</div>
+                            <div class="clear-action-btn" onclick="dialAction('CLEAR')">⌫</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-news" class="app-view">
+                    <h4 style="margin:0 0 10px 0; color:#ffcc00;">Global Feed</h4>
+                    <div class="news-item">
+                        <div class="news-title">Bathroom Texture Patch</div>
+                        <div class="news-desc">Rigid tile grid square overlaps removed from partition layouts for a seamless plaster finish.</div>
+
+                    </div>
+                    <div class="news-item">
+                        <div class="news-title">Dual Switching Integrated</div>
+                        <div class="news-desc">Bathroom features independent toggle logic tracking for ceiling lights.</div>
+                    </div>
+                </div>
+
+                <div id="view-weather" class="app-view">
+                    <div class="weather-header">
+                        <h2 style="margin:0; font-size:18px;">League City</h2>
+                        <div style="font-size:11px; color:#aaa;">Clear Skies Sync</div>
+                    </div>
+                    <div class="weather-day-row"><span>Monday</span><span>☀️ Clear</span><span class="weather-temp">78°F</span></div>
+                    <div class="weather-day-row"><span>Tuesday</span><span>☀️ Clear</span><span class="weather-temp">80°F</span></div>
+                    <div class="weather-day-row"><span>Wednesday</span><span>⛅ Part Cloud</span><span class="weather-temp">75°F</span></div>
+                    <div class="weather-day-row"><span>Thursday</span><span>🌧️ Showers</span><span class="weather-temp">68°F</span></div>
+                    <div class="weather-day-row"><span>Friday</span><span>⛈️ Storms</span><span class="weather-temp">65°F</span></div>
+                    <div class="weather-day-row"><span>Saturday</span><span>⛅ Overcast</span><span class="weather-temp">71°F</span></div>
+                    <div class="weather-day-row"><span>Sunday</span><span>☀️ Bright</span><span class="weather-temp">77°F</span></div>
+
+                </div>
+
+                <div id="view-messages" class="app-view">
+                    <div style="display:flex; flex-direction:column;">
+                        <div class="msg-bubble msg-inbound">Can we exit apps safely now?</div>
+                        <div class="msg-bubble msg-outbound">Yes, an explicit exit button navigation bar handles current frames cleanly.</div>
+                    </div>
+                </div>
+
+                <div id="view-safari" class="app-view">
+                    <div class="safari-tab-bar">
+                        <div id="safari-tabs-container" style="display:flex; gap:4px;"></div>
+                        <div class="add-tab-btn" onclick="addSafariTab()">+</div>
+                    </div>
+                    <div class="safari-iframe-container" id="safari-frames-wrapper"></div>
+                </div>
+            </div>
+
+            <div class="phone-home-bar" onclick="returnToPhoneHome()">
+
+                <div class="home-indicator"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hotbar HUD Display -->
+    <div id="hotbar-container">
+        <div class="hotbar-slot active" id="slot-1"><span class="slot-number">1</span><div class="slot-icon" id="icon-1"></div></div>
+        <div class="hotbar-slot" id="slot-2"><span class="slot-number">2</span><div class="slot-icon" id="icon-2"></div></div>
+        <div class="hotbar-slot" id="slot-3"><span class="slot-number">3</span><div class="slot-icon" id="icon-3"></div></div>
+        <div class="hotbar-slot" id="slot-4"><span class="slot-number">4</span><div class="slot-icon" id="icon-4"></div></div>
+        <div class="hotbar-slot" id="slot-5"><span class="slot-number">5</span><div class="slot-icon" id="icon-5"></div></div>
+        <div class="hotbar-slot" id="slot-6"><span class="slot-number">6</span><div class="slot-icon" id="icon-6"></div></div>
+        <div class="hotbar-slot" id="slot-7"><span class="slot-number">7</span><div class="slot-icon" id="icon-7"></div></div>
+        <div class="hotbar-slot" id="slot-8"><span class="slot-number">8</span><div class="slot-icon" id="icon-8"></div></div>
+        <div class="hotbar-slot" id="slot-9"><span class="slot-number">9</span><div class="slot-icon" id="icon-9"></div></div>
+    </div>
+
+    <script>
+
+        let currentPhoneApp = 'home';
+        let safariTabs = [{ id: 1, title: "Google" }];
+        let activeTabIdx = 0;
+        let tabIdCounter = 1;
+
+        const serviceDirectory = {
+            "911": "Emergency Services", "988": "Suicide & Crisis Lifeline", "211": "Community & Essential Resources",
+            "311": "Non-Emergency Municipal Services", "411": "Directory Information Desk", "511": "Traffic & Travel Conditions",
+            "611": "Telco Provider Customer Care", "711": "Telecommunications Relay Service", "811": "Underground Dig Utilities Hot-line"
+        };
+        const ambientAudio = document.getElementById('game-ambient');
+ambientAudio.volume = 0.21; // Sets your target relaxing background level
+
+function triggerAmbientAudio() {
+    ambientAudio.play();
+    window.removeEventListener('keydown', triggerAmbientAudio);
+}
+
+window.addEventListener('keydown', triggerAmbientAudio);
+
+        function openPhoneApp(appName, titleLabel) {
+            document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
+            document.getElementById(`view-${appName}`).classList.add('active');
+            
+            const header = document.getElementById('phone-app-header');
+            const titleSpan = document.getElementById('app-header-title');
+            
+            if (appName === 'home') {
+
+                header.style.display = 'none';
+            } else {
+                header.style.display = 'flex';
+                titleSpan.innerText = titleLabel || appName;
+            }
+            
+            currentPhoneApp = appName;
+            if (appName === 'safari') renderSafariTabs();
+        }
+
+        function returnToPhoneHome() {
+            openPhoneApp('home', '');
+        }
+
+        function dialNum(character) {
+            const display = document.getElementById('dial-display');
+            const status = document.getElementById('dial-status');
+            if (display.innerText === '---') display.innerText = '';
+            if (display.innerText.length < 12) display.innerText += character;
+
+
+            const currentCode = display.innerText;
+            status.innerText = serviceDirectory[currentCode] ? `Detected: ${serviceDirectory[currentCode]}` : "Ready";
+        }
+
+        function dialAction(actionType) {
+            const display = document.getElementById('dial-display');
+            const status = document.getElementById('dial-status');
+
+            if (actionType === 'CLEAR') {
+                if (display.innerText !== '---' && display.innerText.length > 0) display.innerText = display.innerText.slice(0, -1);
+                if (display.innerText.length === 0) display.innerText = '---';
+                const currentCode = display.innerText;
+                status.innerText = serviceDirectory[currentCode] ? `Detected: ${serviceDirectory[currentCode]}` : "Ready";
+            } else if (actionType === 'CALL') {
+                const targetNumber = display.innerText;
+                if (targetNumber === '---' || targetNumber.length === 0) return;
+
+                status.innerText = serviceDirectory[targetNumber] ? `Connecting to ${serviceDirectory[targetNumber]}...` : `Dialing: ${targetNumber}...`;
+                setTimeout(() => {
+
+                    status.innerText = "Call Ended Line Busy";
+                    setTimeout(() => { display.innerText = '---'; status.innerText = "Ready"; }, 2000);
+                }, 2500);
+            }
+        }
+
+        function renderSafariTabs() {
+            const container = document.getElementById('safari-tabs-container');
+            const wrapper = document.getElementById('safari-frames-wrapper');
+            container.innerHTML = ''; wrapper.innerHTML = '';
+
+            safariTabs.forEach((tab, index) => {
+                const tabEl = document.createElement('div');
+                tabEl.className = `safari-tab ${index === activeTabIdx ? 'active' : ''}`;
+                tabEl.innerHTML = `<span>${tab.title}</span><span class="close-tab-btn" onclick="closeSafariTab(${index}, event)">x</span>`;
+                tabEl.onclick = () => { activeTabIdx = index; renderSafariTabs(); };
+                container.appendChild(tabEl);
+
+                const iframeEl = document.createElement('iframe');
+
+                iframeEl.className = 'safari-iframe';
+                iframeEl.src = "https://www.google.com/search?igu=1";
+                iframeEl.style.display = index === activeTabIdx ? 'block' : 'none';
+                wrapper.appendChild(iframeEl);
+            });
+        }
+
+        function addSafariTab() {
+            tabIdCounter++;
+            safariTabs.push({ id: tabIdCounter, title: `Tab ${safariTabs.length + 1}` });
+            activeTabIdx = safariTabs.length - 1;
+            renderSafariTabs();
+        }
+
+        function closeSafariTab(index, event) {
+            event.stopPropagation();
+            if (safariTabs.length <= 1) return;
+            safariTabs.splice(index, 1);
+            if (activeTabIdx >= safariTabs.length) activeTabIdx = safariTabs.length - 1;
+
+            renderSafariTabs();
+        }
+
+        function updateDynamicDeviceTime() {
+            const timeSpan = document.getElementById('phone-time');
+            if (!timeSpan) return;
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            timeSpan.innerText = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+        }
+
+        window.onload = function () {
+            const container = document.getElementById('canvas-container');
+            const promptHUD = document.getElementById('proximity-prompt');
+            const phoneWrapper = document.getElementById('phone-wrapper');
+            const scene = new THREE.Scene();
+
+            
+            scene.background = new THREE.Color(0x87ceeb); 
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.02);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.LinearToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.appendChild(renderer.domElement);
+
+            updateDynamicDeviceTime();
+            setInterval(updateDynamicDeviceTime, 1000);
+
+            const roomWidth = 16; const roomHeight = 7; const roomDepth = 24;
+
+
+            const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Shift: false, Space: false, c: false };
+            let activeSlot = 1;
+            let inventory = { 1: "flashlight", 2: null, 3: null, 4: null, 5: null, 6: null, 7: null, 8: null, 9: null };
+
+            let states = {
+                door: { open: false, rot: 0, targetRot: 0 },
+                bathroomDoor: { open: false, rot: 0, targetRot: 0 },
+                shutters: { open: false, rot: 0, targetRot: 0 },
+                lightSwitch: { on: true },
+                bathroomLightSwitch: { on: true }, // Bathroom Ceiling Light switch setting
+                shelf: { open: false, pos: 0, targetPos: 0 },
+                sink: { on: false },
+                phonePickedUp: false,
+                isLayingDown: false,
+                isSittingOnToilet: false,
+                flashlightOn: true
+            };
+
+            document.getElementById("icon-1").innerText = "🔦";
+
+
+            const player = {
+                position: new THREE.Vector3(0, 2.5, 6), velocity: new THREE.Vector3(), rotation: new THREE.Vector3(0, Math.PI, 0), 
+                height: 2.5, crouchHeight: 1.3, currentHeight: 2.5, isGrounded: true,
+                speed: 5.5, sprintMultiplier: 1.7, crouchMultiplier: 0.55, jumpForce: 11.0, gravity: 30.0
+            };
+
+            const lookSpeed = 1.7; let bobTime = 0;
+
+            // Paint Grain Wall Texture
+            function createPaintGrainTexture() {
+                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 512, 512);
+                const imgData = ctx.getImageData(0, 0, 512, 512); const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 28; const val = Math.min(255, Math.max(0, 255 + noise));
+                    data[i] = val; data[i+1] = val; data[i+2] = val;
+                }
+                ctx.putImageData(imgData, 0, 0);
+                const texture = new THREE.CanvasTexture(canvas);
+
+                texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+                return texture;
+            }
+            const paintGrainTex = createPaintGrainTexture(); paintGrainTex.repeat.set(10, 6);
+
+            function createWallMaterial(colorHex) {
+                return new THREE.MeshStandardMaterial({
+                    color: colorHex, roughness: 0.9, metalness: 0.0,
+                    bumpMap: paintGrainTex, bumpScale: 0.012, shadowSide: THREE.FrontSide 
+                });
+            }
+
+            const wallsGroup = new THREE.Group();
+            const tanWallMat = createWallMaterial(0xc6a682);
+            
+            // Fixed: Created a smooth texture map for bathroom walls to prevent rigid predictions
+            const bathPlasterMat = new THREE.MeshStandardMaterial({
+                color: 0xa4b9b7, roughness: 0.85, metalness: 0.0, bumpMap: paintGrainTex, bumpScale: 0.005, shadowSide: THREE.FrontSide
+            });
+
+
+            // Structural Room Frame
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, roomDepth), tanWallMat); leftWall.position.set(-roomWidth/2, roomHeight/2, 0); leftWall.receiveShadow = true; leftWall.castShadow = true; wallsGroup.add(leftWall);
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, roomDepth), tanWallMat); rightWall.position.set(roomWidth/2, roomHeight/2, 0); rightWall.receiveShadow = true; rightWall.castShadow = true; wallsGroup.add(rightWall);
+            const frontWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 0.2), tanWallMat); frontWall.position.set(0, roomHeight/2, roomDepth/2); frontWall.receiveShadow = true; frontWall.castShadow = true; wallsGroup.add(frontWall);
+            const backWallL = new THREE.Mesh(new THREE.BoxGeometry(4.0, roomHeight, 0.2), tanWallMat); backWallL.position.set(-6.0, roomHeight/2, -roomDepth/2); backWallL.receiveShadow = true; backWallL.castShadow = true; wallsGroup.add(backWallL);
+            const backWallC = new THREE.Mesh(new THREE.BoxGeometry(3.0, roomHeight, 0.2), tanWallMat); backWallC.position.set(-0.5, roomHeight/2, -roomDepth/2); backWallC.receiveShadow = true; backWallC.castShadow = true; wallsGroup.add(backWallC);
+            const backWallR = new THREE.Mesh(new THREE.BoxGeometry(4.5, roomHeight, 0.2), tanWallMat); backWallR.position.set(5.75, roomHeight/2, -roomDepth/2); backWallR.receiveShadow = true; backWallR.castShadow = true; wallsGroup.add(backWallR);
+            const doorHeader = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 0.2), tanWallMat); doorHeader.position.set(-3.0, 6.0, -roomDepth/2); doorHeader.receiveShadow = true; wallsGroup.add(doorHeader);
+            const windowFooter = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 0.2), tanWallMat); windowFooter.position.set(2.25, 1.0, -roomDepth/2); windowFooter.receiveShadow = true; windowFooter.castShadow = true; wallsGroup.add(windowFooter);
+            const windowHeader = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 0.2), tanWallMat); windowHeader.position.set(2.25, 6.0, -roomDepth/2); windowHeader.receiveShadow = true; wallsGroup.add(windowHeader);
+
+            // Bathroom Dividers wrapped in custom soft texture
+            const bathWallV = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, 8.0), bathPlasterMat); bathWallV.position.set(-2.0, roomHeight/2, 8.0); bathWallV.castShadow = true; bathWallV.receiveShadow = true; wallsGroup.add(bathWallV);
+            const bathWallH_Left = new THREE.Mesh(new THREE.BoxGeometry(2.0, roomHeight, 0.2), bathPlasterMat); bathWallH_Left.position.set(-7.0, roomHeight/2, 4.0); bathWallH_Left.castShadow = true; bathWallH_Left.receiveShadow = true; wallsGroup.add(bathWallH_Left);
+            const bathWallH_Right = new THREE.Mesh(new THREE.BoxGeometry(2.0, roomHeight, 0.2), bathPlasterMat); bathWallH_Right.position.set(-3.0, roomHeight/2, 4.0); bathWallH_Right.castShadow = true; bathWallH_Right.receiveShadow = true; wallsGroup.add(bathWallH_Right);
+            const bathDoorHeader = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 0.2), bathPlasterMat); bathDoorHeader.position.set(-5.0, 6.0, 4.0); bathDoorHeader.castShadow = true; bathDoorHeader.receiveShadow = true; wallsGroup.add(bathDoorHeader);
+            scene.add(wallsGroup);
+
+            // --- Robust White Baseboards Setup (Thicker & offset slightly to prevent wall clipping) ---
+
+            const baseboardGroup = new THREE.Group();
+            const bbH = 0.42; const bbT = 0.13;
+            const bbMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 });
+
+            function addFixedBB(x, y, z, w, h, d) {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bbMat);
+                mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true;
+                baseboardGroup.add(mesh);
+            }
+
+            // Main Area Baseboard Tracking
+            addFixedBB(-roomWidth/2 + bbT/2 + 0.02, bbH/2 + 0.05, -4.0, bbT, bbH, 16.0); 
+            addFixedBB(roomWidth/2 - bbT/2 - 0.02, bbH/2 + 0.05, 0.0, bbT, bbH, 24.0);  
+            addFixedBB(3.0, bbH/2 + 0.05, roomDepth/2 - bbT/2 - 0.02, 10.0, bbH, bbT); 
+            addFixedBB(-6.0, bbH/2 + 0.05, -roomDepth/2 + bbT/2 + 0.02, 4.0, bbH, bbT); 
+            addFixedBB(-0.5, bbH/2 + 0.05, -roomDepth/2 + bbT/2 + 0.02, 3.0, bbH, bbT); 
+            addFixedBB(5.75, bbH/2 + 0.05, -roomDepth/2 + bbT/2 + 0.02, 4.5, bbH, bbT); 
+
+            // Inner & Outer Bathroom Wall Bases
+
+            addFixedBB(-2.0 + bbT/2 + 0.02, bbH/2 + 0.05, 8.0, bbT, bbH, 8.0); 
+            addFixedBB(-7.0, bbH/2 + 0.05, 4.0 - bbT/2 - 0.02, 2.0, bbH, bbT); 
+            addFixedBB(-3.0, bbH/2 + 0.05, 4.0 - bbT/2 - 0.02, 2.0, bbH, bbT); 
+            addFixedBB(-roomWidth/2 + bbT/2 + 0.02, bbH/2 + 0.05, 8.0, bbT, bbH, 8.0);  
+            addFixedBB(-5.0, bbH/2 + 0.05, roomDepth/2 - bbT/2 - 0.02, 6.0, bbH, bbT); 
+            addFixedBB(-2.0 - bbT/2 - 0.02, bbH/2 + 0.05, 8.0, bbT, bbH, 8.0);  
+            addFixedBB(-7.0, bbH/2 + 0.05, 4.0 + bbT/2 + 0.02, 2.0, bbH, bbT); 
+            addFixedBB(-3.0, bbH/2 + 0.05, 4.0 + bbT/2 + 0.02, 2.0, bbH, bbT); 
+            scene.add(baseboardGroup);
+
+            // --- Ceiling & Floor Configuration ---
+            const ceiling = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, 0.2, roomDepth), tanWallMat);
+            ceiling.position.set(0, roomHeight, 0); ceiling.receiveShadow = true; ceiling.castShadow = true; scene.add(ceiling);
+
+            const floorGroup = new THREE.Group();
+            const tileSize = 2.0; const tileThick = 0.1;
+            const groutMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const tileMatA = new THREE.MeshStandardMaterial({ color: 0xd6d6d6, roughness: 0.3 });
+            const tileMatB = new THREE.MeshStandardMaterial({ color: 0xbebebe, roughness: 0.32 });
+
+
+            // Seamless fluid finish for bathroom floor to prevent predicted repetitive lines
+            const bathFloorMat = new THREE.MeshStandardMaterial({ color: 0xdfdfdf, roughness: 0.4, bumpMap: paintGrainTex, bumpScale: 0.002 });
+            const bathSolidFloor = new THREE.Mesh(new THREE.BoxGeometry(6.0, tileThick, 8.0), bathFloorMat);
+            bathSolidFloor.position.set(-5.0, -tileThick/2, 8.0); bathSolidFloor.receiveShadow = true; scene.add(bathSolidFloor);
+
+            let rIdx = 0;
+            for (let z = -roomDepth/2 + tileSize/2; z < roomDepth/2; z += tileSize + 0.015) {
+                let cIdx = 0;
+                for (let x = -roomWidth/2 + tileSize/2; x < roomWidth/2; x += tileSize + 0.015) {
+                    if (x < -2.0 && z > 4.0) { cIdx++; continue; } // Skip standard grid inside bathroom bounds
+                    const activeTileMat = (rIdx + cIdx) % 2 === 0 ? tileMatA : tileMatB;
+                    const tile = new THREE.Mesh(new THREE.BoxGeometry(tileSize, tileThick, tileSize), activeTileMat);
+                    tile.position.set(x, -tileThick/2, z); tile.receiveShadow = true; floorGroup.add(tile);
+
+                    const lineX = new THREE.Mesh(new THREE.BoxGeometry(0.015, tileThick - 0.012, tileSize + 0.02), groutMat); lineX.position.set(x + tileSize/2 + 0.0075, -tileThick/2, z); floorGroup.add(lineX);
+                    const lineZ = new THREE.Mesh(new THREE.BoxGeometry(tileSize + 0.02, tileThick - 0.012, 0.015), groutMat); lineZ.position.set(x, -tileThick/2, z + tileSize/2 + 0.0075); floorGroup.add(lineZ);
+                    cIdx++;
+                }
+                rIdx++;
+
+            }
+            scene.add(floorGroup);
+
+            // --- Bedroom Furniture Core ---
+            const furnitureGroup = new THREE.Group();
+            const bedX = 5.2; const bedZ = 8.5;
+            const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.6, 6.5), new THREE.MeshStandardMaterial({ color: 0x4a2e1b, roughness: 0.7 })); bedFrame.position.set(bedX, 0.3, bedZ); bedFrame.castShadow = true; bedFrame.receiveShadow = true; furnitureGroup.add(bedFrame);
+            const mattress = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.7, 6.3), new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.95 })); mattress.position.set(bedX, 0.95, bedZ); mattress.castShadow = true; mattress.receiveShadow = true; furnitureGroup.add(mattress);
+            const pillow = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.25, 1.5), new THREE.MeshStandardMaterial({ color: 0xe6e6e6, roughness: 0.9 })); pillow.position.set(bedX, 1.35, bedZ + 2.2); pillow.castShadow = true; furnitureGroup.add(pillow);
+            const blanket = new THREE.Mesh(new THREE.BoxGeometry(4.34, 0.72, 4.4), new THREE.MeshStandardMaterial({ color: 0x2e4a62, roughness: 0.85 })); blanket.position.set(bedX, 0.97, bedZ - 0.95); blanket.castShadow = true; blanket.receiveShadow = true; furnitureGroup.add(blanket);
+
+            const standX = 2.0; const standZ = 11.0;
+            const standBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.3, 1.5), new THREE.MeshStandardMaterial({ color: 0x3d2515, roughness: 0.65 })); standBody.position.set(standX, 0.65, standZ); standBody.castShadow = true; standBody.receiveShadow = true; furnitureGroup.add(standBody);
+
+            const shelfGroup = new THREE.Group(); shelfGroup.position.set(standX, 0.45, standZ);
+            const shelfMesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 1.3), new THREE.MeshStandardMaterial({ color: 0x543520, roughness: 0.6 })); shelfMesh.castShadow = true; shelfMesh.receiveShadow = true; shelfGroup.add(shelfMesh);
+            const shelfHandle = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0xddca7d, metalness: 0.7 })); shelfHandle.position.set(0, 0, 0.66); shelfGroup.add(shelfHandle);
+            furnitureGroup.add(shelfGroup);
+
+
+            const phoneGroup = new THREE.Group(); phoneGroup.position.set(standX - 0.2, 1.33, standZ + 0.1);
+            const phoneBody = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 0.35), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.8 })); phoneBody.castShadow = true; phoneGroup.add(phoneBody);
+            const phoneScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.33), new THREE.MeshBasicMaterial({ color: 0x0a0a0a })); phoneScreenMesh.rotation.x = -Math.PI / 2; phoneScreenMesh.position.y = 0.011; phoneGroup.add(phoneScreenMesh);
+            scene.add(phoneGroup);
+
+            const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5 })); lampBase.position.set(standX + 0.3, 1.36, standZ - 0.2); furnitureGroup.add(lampBase);
+            const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 0.4, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })); lampShade.position.set(standX + 0.3, 1.6, standZ - 0.2); furnitureGroup.add(lampShade);
+            scene.add(furnitureGroup);
+
+            // --- Bathroom Plumbing Layout ---
+            const bathroomGroup = new THREE.Group();
+            const cabinetGroup = new THREE.Group(); cabinetGroup.position.set(-7.2, 0.65, 8.0);
+            const cabinetBase = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.1, 1.3), new THREE.MeshStandardMaterial({ color: 0xefefef, roughness: 0.5 })); cabinetBase.position.y = -0.1; cabinetBase.castShadow = true; cabinetBase.receiveShadow = true; cabinetGroup.add(cabinetBase);
+            const counterTop = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.1, 1.34), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 })); counterTop.position.y = 0.5; counterTop.castShadow = true; cabinetGroup.add(counterTop);
+            const sinkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.32, 0.35, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, side: THREE.DoubleSide })); sinkBasin.position.set(0, 0.35, 0); sinkBasin.castShadow = true; cabinetGroup.add(sinkBasin);
+            const sinkBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.02, 16), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.2 })); sinkBottom.position.set(0, 0.18, 0); sinkBottom.receiveShadow = true; cabinetGroup.add(sinkBottom);
+            bathroomGroup.add(cabinetGroup);
+
+            const faucet = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 })); faucet.position.set(-7.2, 1.38, 8.0); bathroomGroup.add(faucet);
+
+            const faucetSpout = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.04), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 })); faucetSpout.position.set(-7.14, 1.44, 8.0); bathroomGroup.add(faucetSpout);
+            const waterStream = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.1), new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.6 })); waterStream.position.set(-7.09, 0.75, 8.0); waterStream.visible = false; bathroomGroup.add(waterStream);
+
+            const toiletGroup = new THREE.Group(); toiletGroup.position.set(-4.0, 0.35, 10.8);
+            const toiletLowerBase = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.9), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 })); toiletLowerBase.position.y = -0.15; toiletLowerBase.castShadow = true; toiletGroup.add(toiletLowerBase);
+            const toiletBowlRim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.45, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, side: THREE.DoubleSide })); toiletBowlRim.position.set(0, 0.22, -0.05); toiletBowlRim.castShadow = true; toiletGroup.add(toiletBowlRim);
+            const toiletBowlBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 16), new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1 })); toiletBowlBottom.position.set(0, 0.01, -0.05); toiletBowlBottom.receiveShadow = true; toiletGroup.add(toiletBowlBottom);
+            const yellowWater = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.31, 0.02, 16), new THREE.MeshStandardMaterial({ color: 0xf3e14c, roughness: 0.05, transparent: true, opacity: 0.75 })); yellowWater.position.set(0, 0.16, -0.05); toiletGroup.add(yellowWater);
+            const toiletTank = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.8, 0.32), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 })); toiletTank.position.set(0, 0.75, 0.36); toiletTank.castShadow = true; toiletGroup.add(toiletTank);
+            
+            const toiletHandlePivot = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.04, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9 })); toiletHandlePivot.rotation.x = Math.PI/2; toiletHandlePivot.position.set(-0.28, 0.95, 0.52); toiletGroup.add(toiletHandlePivot);
+            const toiletHandleLever = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.02), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9 })); toiletHandleLever.position.set(-0.33, 0.95, 0.54); toiletGroup.add(toiletHandleLever);
+            bathroomGroup.add(toiletGroup);
+
+            const tpBracket = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.2), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.6 })); tpBracket.position.set(-2.15, 0.9, 10.8); bathroomGroup.add(tpBracket);
+            const tpRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.16, 12), new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9 })); tpRoll.rotation.x = Math.PI / 2; tpRoll.position.set(-2.1, 0.9, 10.8); bathroomGroup.add(tpRoll);
+            scene.add(bathroomGroup);
+
+            // --- Electrical Switch Plates ---
+
+            const switchGroup = new THREE.Group(); switchGroup.position.set(7.88, 3.5, 0.0); switchGroup.rotation.y = -Math.PI / 2;
+            const switchPlate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.02), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })); switchGroup.add(switchPlate);
+            const switchToggle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.05), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 })); switchToggle.position.set(0, 0, 0.02); switchGroup.add(switchToggle);
+            scene.add(switchGroup);
+
+            // Fixed Bathroom light switch positioning inside bathroom space
+            const bathSwitchGroup = new THREE.Group(); bathSwitchGroup.position.set(-2.14, 3.5, 4.8); bathSwitchGroup.rotation.y = Math.PI / 2;
+            const bathSwitchPlate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.02), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })); bathSwitchGroup.add(bathSwitchPlate);
+            const bathSwitchToggle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.05), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 })); bathSwitchToggle.position.set(0, 0, 0.02); bathSwitchGroup.add(bathSwitchToggle);
+            scene.add(bathSwitchGroup);
+
+            // --- Outdoor Secured Boundary Fencing & Volumetric Sun ---
+            const outdoorGroup = new THREE.Group();
+            const grassMat = new THREE.MeshStandardMaterial({ color: 0x3d6831, roughness: 0.95 });
+            const yardGrass = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), grassMat); yardGrass.rotation.x = -Math.PI / 2; yardGrass.position.set(0, -0.01, -22); yardGrass.receiveShadow = true; outdoorGroup.add(yardGrass);
+
+            const fenceGroup = new THREE.Group(); const tallPostGeom = new THREE.BoxGeometry(0.12, 2.8, 0.12); const fenceMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 });
+            const fenceMinX = -12.0; const fenceMaxX = 12.0; const fenceMinZ = -22.0; const fenceMaxZ = -12.0;
+
+
+            for (let fx = fenceMinX; fx <= fenceMaxX; fx += 1.5) {
+                const post = new THREE.Mesh(tallPostGeom, fenceMat); post.position.set(fx, 1.4, fenceMinZ); post.castShadow = true; post.receiveShadow = true; fenceGroup.add(post);
+            }
+            const tallRailGeom = new THREE.BoxGeometry(fenceMaxX - fenceMinX + 0.2, 0.1, 0.06);
+            const rail1 = new THREE.Mesh(tallRailGeom, fenceMat); rail1.position.set(0, 2.3, fenceMinZ); rail1.castShadow = true; fenceGroup.add(rail1);
+            const rail2 = new THREE.Mesh(tallRailGeom, fenceMat); rail2.position.set(0, 1.4, fenceMinZ); rail2.castShadow = true; fenceGroup.add(rail2);
+            const rail3 = new THREE.Mesh(tallRailGeom, fenceMat); rail3.position.set(0, 0.4, fenceMinZ); rail3.castShadow = true; fenceGroup.add(rail3);
+
+            for (let fz = fenceMinZ + 1.5; fz <= fenceMaxZ; fz += 1.5) {
+                const postL = new THREE.Mesh(tallPostGeom, fenceMat); postL.position.set(fenceMinX, 1.4, fz); postL.castShadow = true; fenceGroup.add(postL);
+                const postR = new THREE.Mesh(tallPostGeom, fenceMat); postR.position.set(fenceMaxX, 1.4, fz); postR.castShadow = true; fenceGroup.add(postR);
+            }
+            const sideRailGeom = new THREE.BoxGeometry(0.06, 0.1, fenceMaxZ - fenceMinZ + 0.2);
+            const sRailL1 = new THREE.Mesh(sideRailGeom, fenceMat); sRailL1.position.set(fenceMinX, 2.3, -17.0); sRailL1.castShadow = true; fenceGroup.add(sRailL1);
+            const sRailL2 = new THREE.Mesh(sideRailGeom, fenceMat); sRailL2.position.set(fenceMinX, 1.4, -17.0); sRailL2.castShadow = true; fenceGroup.add(sRailL2);
+            const sRailL3 = new THREE.Mesh(sideRailGeom, fenceMat); sRailL3.position.set(fenceMinX, 0.4, -17.0); sRailL3.castShadow = true; fenceGroup.add(sRailL3);
+
+            const sRailR1 = new THREE.Mesh(sideRailGeom, fenceMat); sRailR1.position.set(fenceMaxX, 2.3, -17.0); sRailR1.castShadow = true; fenceGroup.add(sRailR1);
+            const sRailR2 = new THREE.Mesh(sideRailGeom, fenceMat); sRailR2.position.set(fenceMaxX, 1.4, -17.0); sRailR2.castShadow = true; fenceGroup.add(sRailR2);
+
+            const sRailR3 = new THREE.Mesh(sideRailGeom, fenceMat); sRailR3.position.set(fenceMaxX, 0.4, -17.0); sRailR3.castShadow = true; fenceGroup.add(sRailR3);
+
+            for (let fx = -12.0; fx <= -8.0; fx += 1.0) {
+                const post = new THREE.Mesh(tallPostGeom, fenceMat); post.position.set(fx, 1.4, -12.0); post.castShadow = true; fenceGroup.add(post);
+            }
+            const connRailGeom = new THREE.BoxGeometry(4.2, 0.1, 0.06);
+            const cRailL1 = new THREE.Mesh(connRailGeom, fenceMat); cRailL1.position.set(-10.0, 2.3, -12.0); cRailL1.castShadow = true; fenceGroup.add(cRailL1);
+            const cRailL2 = new THREE.Mesh(connRailGeom, fenceMat); cRailL2.position.set(-10.0, 1.4, -12.0); cRailL2.castShadow = true; fenceGroup.add(cRailL2);
+            const cRailL3 = new THREE.Mesh(connRailGeom, fenceMat); cRailL3.position.set(-10.0, 0.4, -12.0); cRailL3.castShadow = true; fenceGroup.add(cRailL3);
+
+            for (let fx = 8.0; fx <= 12.0; fx += 1.0) {
+                const post = new THREE.Mesh(tallPostGeom, fenceMat); post.position.set(fx, 1.4, -12.0); post.castShadow = true; fenceGroup.add(post);
+            }
+            const cRailR1 = new THREE.Mesh(connRailGeom, fenceMat); cRailR1.position.set(10.0, 2.3, -12.0); cRailR1.castShadow = true; fenceGroup.add(cRailR1);
+            const cRailR2 = new THREE.Mesh(connRailGeom, fenceMat); cRailR2.position.set(10.0, 1.4, -12.0); cRailR2.castShadow = true; fenceGroup.add(cRailR2);
+            const cRailR3 = new THREE.Mesh(connRailGeom, fenceMat); cRailR3.position.set(10.0, 0.4, -12.0); cRailR3.castShadow = true; fenceGroup.add(cRailR3);
+            outdoorGroup.add(fenceGroup); scene.add(outdoorGroup);
+
+            const sunGeometry = new THREE.SphereGeometry(3.5, 32, 32); const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xfffcd0 });
+
+            const sunVisualMesh = new THREE.Mesh(sunGeometry, sunMaterial); sunVisualMesh.position.set(30, 50, -50); scene.add(sunVisualMesh);
+
+            // --- Door and Shutter Pivot Assemblies ---
+            const doorPivot = new THREE.Group(); doorPivot.position.set(-4.0, 0, -12.0); scene.add(doorPivot);
+            const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 5.0, 0.12), new THREE.MeshStandardMaterial({ color: 0x4e3629, roughness: 0.65 })); doorMesh.position.set(1.0, 2.5, 0); doorMesh.castShadow = true; doorMesh.receiveShadow = true; doorPivot.add(doorMesh);
+            
+            // Fixed symmetrical doorknob mapping parameters
+            const knobFront = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({ color: 0xe6c65e, metalness: 0.8 })); knobFront.position.set(1.82, 2.5, 0.075); doorPivot.add(knobFront);
+            const knobBack = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({ color: 0xe6c65e, metalness: 0.8 })); knobBack.position.set(1.82, 2.5, -0.075); doorPivot.add(knobBack);
+
+            const bathDoorPivot = new THREE.Group(); bathDoorPivot.position.set(-4.0, 0, 4.0); scene.add(bathDoorPivot);
+            const bathDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 5.0, 0.12), new THREE.MeshStandardMaterial({ color: 0x6e503f, roughness: 0.7 })); bathDoorMesh.position.set(-1.0, 2.5, 0); bathDoorMesh.castShadow = true; bathDoorMesh.receiveShadow = true; bathDoorPivot.add(bathDoorMesh);
+            const bathKnobFront = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({ color: 0xe6c65e, metalness: 0.8 })); bathKnobFront.position.set(-1.82, 2.5, 0.075); bathDoorPivot.add(bathKnobFront);
+            const bathKnobBack = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({ color: 0xe6c65e, metalness: 0.8 })); bathKnobBack.position.set(-1.82, 2.5, -0.075); bathDoorPivot.add(bathKnobBack);
+
+            const leftShutterPivot = new THREE.Group(); leftShutterPivot.position.set(1.0, 3.5, -roomDepth/2); scene.add(leftShutterPivot);
+            const leftShutter = new THREE.Mesh(new THREE.BoxGeometry(1.25, 3.0, 0.06), new THREE.MeshStandardMaterial({ color: 0x1e3b2b, roughness: 0.7 })); leftShutter.position.set(0.625, 0, 0); leftShutter.castShadow = true; leftShutterPivot.add(leftShutter);
+
+            const rightShutterPivot = new THREE.Group(); rightShutterPivot.position.set(3.5, 3.5, -roomDepth/2); scene.add(rightShutterPivot);
+
+            const rightShutter = new THREE.Mesh(new THREE.BoxGeometry(1.25, 3.0, 0.06), new THREE.MeshStandardMaterial({ color: 0x1e3b2b, roughness: 0.7 })); rightShutter.position.set(-0.625, 0, 0); rightShutter.castShadow = true; rightShutterPivot.add(rightShutter);
+
+            // --- Ceiling Fan & Integrated Bulb Assembly ---
+            const fanGroup = new THREE.Group(); fanGroup.position.set(0, roomHeight, 0);
+            const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); fanRod.position.y = -0.4; fanGroup.add(fanRod);
+            const fanMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.22, 16), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.5 })); fanMotor.position.y = -0.8; fanMotor.castShadow = true; fanGroup.add(fanMotor);
+
+            const fanBladesSubGroup = new THREE.Group(); fanBladesSubGroup.position.y = -0.8;
+            for (let i = 0; i < 4; i++) {
+                const bladeMesh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 0.22), new THREE.MeshStandardMaterial({ color: 0x3a2212, roughness: 0.8 })); bladeMesh.position.x = 1.1; bladeMesh.castShadow = true;
+                const bladePivot = new THREE.Group(); bladePivot.rotation.y = (Math.PI / 2) * i; bladePivot.add(bladeMesh); fanBladesSubGroup.add(bladePivot);
+            }
+            fanGroup.add(fanBladesSubGroup);
+            const neonMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff })); neonMesh.position.y = -0.96; fanGroup.add(neonMesh);
+            scene.add(fanGroup);
+
+            // --- Fixed Bathroom Ceiling Light Integration ---
+            const bathCeilingFixture = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
+            bathCeilingFixture.position.set(-5.0, roomHeight - 0.04, 8.0);
+
+            scene.add(bathCeilingFixture);
+
+            const bathCeilingBulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            bathCeilingBulb.position.set(-5.0, roomHeight - 0.12, 8.0);
+            scene.add(bathCeilingBulb);
+
+            // --- Illumination Core ---
+            const ceilingLight = new THREE.PointLight(0xffffff, 0.8, 48, 1.1); ceilingLight.position.set(0, roomHeight - 1.0, 0); ceilingLight.castShadow = true;
+            ceilingLight.shadow.mapSize.width = 1048; ceilingLight.shadow.mapSize.height = 1048; ceilingLight.shadow.bias = -0.0018; scene.add(ceilingLight);
+
+            // Added independent bathroom ceiling loop point light instance
+            const bathCeilingLight = new THREE.PointLight(0xffffff, 0.75, 16, 1.1);
+            bathCeilingLight.position.set(-5.0, roomHeight - 0.3, 8.0);
+            bathCeilingLight.castShadow = true;
+            scene.add(bathCeilingLight);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.15); scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff8f0, 1.2); sunLight.position.set(15, 25, -25); sunLight.castShadow = true;
+
+            sunLight.shadow.mapSize.width = 2048; sunLight.shadow.mapSize.height = 2048; sunLight.shadow.bias = -0.0006; 
+            sunLight.shadow.camera.left = -22; sunLight.shadow.camera.right = 22; sunLight.shadow.camera.top = 22; sunLight.shadow.camera.bottom = -22;
+            sunLight.shadow.camera.near = 0.5; sunLight.shadow.camera.far = 80; scene.add(sunLight);
+
+            const flashlight = new THREE.SpotLight(0xfffecd, 1.6, 35, Math.PI / 6.5, 0.45, 1.0); flashlight.castShadow = true;
+            flashlight.shadow.mapSize.width = 1024; flashlight.shadow.mapSize.height = 1024; flashlight.shadow.bias = -0.001;
+            scene.add(flashlight); scene.add(flashlight.target);
+
+            // --- Colliders Grid Matrix ---
+            const colliders = [];
+            function updateCollidersList() {
+                colliders.length = 0;
+                colliders.push({ minX: -8.15, maxX: -7.85, minZ: -12.2, maxZ: 12.2 }); 
+                colliders.push({ minX: 7.85, maxX: 8.15, minZ: -12.2, maxZ: 12.2 });  
+                colliders.push({ minX: -8.2, maxX: 8.2, minZ: 11.85, maxZ: 12.15 });  
+                colliders.push({ minX: -8.2, maxX: -4.0, minZ: -12.15, maxZ: -11.85 });
+                colliders.push({ minX: -2.0, maxX: 8.2, minZ: -12.15, maxZ: -11.85 });
+                if (!states.door.open) colliders.push({ minX: -4.0, maxX: -2.0, minZ: -12.15, maxZ: -11.85 }); 
+                colliders.push({ minX: -2.1, maxX: -1.9, minZ: 4.0, maxZ: 12.2 }); 
+
+                colliders.push({ minX: -8.2, maxX: -6.0, minZ: 3.85, maxZ: 4.15 }); 
+                colliders.push({ minX: -4.0, maxX: -1.9, minZ: 3.85, maxZ: 4.15 }); 
+                if (!states.bathroomDoor.open) colliders.push({ minX: -6.0, maxX: -4.0, minZ: 3.85, maxZ: 4.15 }); 
+
+                // Property fence hard collision loops
+                colliders.push({ minX: -14.0, maxX: 14.0, minZ: -22.2, maxZ: -11.8 });  
+                colliders.push({ minX: -12.2, maxX: -11.8, minZ: -22.2, maxZ: -11.8 }); 
+                colliders.push({ minX: 11.8, maxX: 12.2, minZ: -22.2, maxZ: -11.8 });  
+                colliders.push({ minX: -12.2, maxX: -8.0, minZ: -12.2, maxZ: -11.8 });  
+                colliders.push({ minX: 8.0, maxX: 12.2, minZ: -12.2, maxZ: -11.8 });   
+
+                if (!states.isLayingDown) colliders.push({ minX: 2.85, maxX: 7.55, minZ: 5.15, maxZ: 11.85 }); 
+                colliders.push({ minX: 1.25, maxX: 2.75, minZ: 10.25, maxZ: 11.75 }); 
+                colliders.push({ minX: -7.9, maxX: -5.8, minZ: 7.35, maxZ: 8.65 });   
+                if (!states.isSittingOnToilet) colliders.push({ minX: -4.4, maxX: -3.6, minZ: 10.2, maxZ: 11.4 });  
+            }
+            updateCollidersList();
+
+            function checkCollisionMatrix(testX, testZ, radius) {
+
+                for (let i = 0; i < colliders.length; i++) {
+                    const c = colliders[i];
+                    const closestX = Math.max(c.minX, Math.min(testX, c.maxX));
+                    const closestZ = Math.max(c.minZ, Math.min(testZ, c.maxZ));
+                    const distX = testX - closestX; const distZ = testZ - closestZ;
+                    if ((distX * distX + distZ * distZ) < (radius * radius)) return true; 
+                }
+                return false;
+            }
+
+            const interactables = [
+                { id: "door", pos: new THREE.Vector3(-3.0, 1.5, -12.0), radius: 3.0 },
+                { id: "bathroomDoor", pos: new THREE.Vector3(-5.0, 1.5, 4.0), radius: 3.0 },
+                { id: "shutters", pos: new THREE.Vector3(2.25, 3.5, -12.0), radius: 3.2 },
+                { id: "lightSwitch", pos: new THREE.Vector3(7.8, 3.5, 0.0), radius: 3.2 },
+                { id: "bathroomLightSwitch", pos: new THREE.Vector3(-2.14, 3.5, 4.8), radius: 2.5 },
+                { id: "shelf", pos: new THREE.Vector3(standX, 0.5, standZ), radius: 2.5 },
+                { id: "bed", pos: new THREE.Vector3(bedX, 1.0, bedZ), radius: 3.5 },
+                { id: "phone", pos: new THREE.Vector3(standX - 0.2, 1.33, standZ + 0.1), radius: 2.2 },
+
+                { id: "sink", pos: new THREE.Vector3(-7.2, 1.2, 8.0), radius: 2.5 },
+                { id: "toilet", pos: new THREE.Vector3(-4.0, 0.8, 10.8), radius: 2.5 }
+            ];
+
+            const clock = new THREE.Clock(); let currentInteractable = null;
+
+            // --- Key State Watchers ---
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                if (key in keys) keys[key] = true;
+                if (e.key in keys) keys[e.key] = true;
+
+                if (key === 'f') states.flashlightOn = !states.flashlightOn;
+
+                if (key === 'e' && currentInteractable) {
+                    if (states.isLayingDown && currentInteractable !== "bed") return;
+                    if (states.isSittingOnToilet && currentInteractable !== "toilet") return;
+
+                    switch (currentInteractable) {
+
+                        case "door":
+                            states.door.open = !states.door.open; states.door.targetRot = states.door.open ? -Math.PI * 0.55 : 0;
+                            updateCollidersList(); break;
+                        case "bathroomDoor":
+                            states.bathroomDoor.open = !states.bathroomDoor.open; states.bathroomDoor.targetRot = states.bathroomDoor.open ? Math.PI * 0.55 : 0;
+                            updateCollidersList(); break;
+                        case "shutters":
+                            states.shutters.open = !states.shutters.open; states.shutters.targetRot = states.shutters.open ? Math.PI * 0.75 : 0; break;
+                        case "lightSwitch":
+                            states.lightSwitch.on = !states.lightSwitch.on;
+                            ceilingLight.intensity = states.lightSwitch.on ? 0.8 : 0.1;
+                            switchToggle.position.y = states.lightSwitch.on ? 0 : -0.05; break;
+                        case "bathroomLightSwitch":
+                            states.bathroomLightSwitch.on = !states.bathroomLightSwitch.on;
+                            bathCeilingLight.intensity = states.bathroomLightSwitch.on ? 0.75 : 0.0;
+                            bathSwitchToggle.position.y = states.bathroomLightSwitch.on ? 0 : -0.05; break;
+                        case "shelf":
+                            states.shelf.open = !states.shelf.open; states.shelf.targetPos = states.shelf.open ? 0.6 : 0; break;
+                        case "sink":
+
+                            states.sink.on = !states.sink.on; waterStream.visible = states.sink.on; break;
+                        case "phone":
+                            if (!states.phonePickedUp) {
+                                states.phonePickedUp = true; scene.remove(phoneGroup);
+                                inventory[2] = "phone"; document.getElementById("icon-2").innerText = "📱";
+                                triggerSlotSelection(2);
+                            }
+                            break;
+                        case "bed":
+                            states.isLayingDown = !states.isLayingDown;
+                            if (states.isLayingDown) {
+                                player.position.set(bedX, 1.8, bedZ); player.rotation.set(0, Math.PI, 0); player.velocity.set(0, 0, 0);
+                            } else { player.position.set(bedX - 1.8, player.height, bedZ); }
+                            updateCollidersList(); break;
+                        case "toilet":
+                            states.isSittingOnToilet = !states.isSittingOnToilet;
+                            if (states.isSittingOnToilet) {
+                                player.position.set(-4.0, 2.0, 10.6); player.rotation.set(0, 0, 0); player.velocity.set(0, 0, 0);
+                            } else { player.position.set(-4.0, player.height, 9.2); }
+
+                            updateCollidersList(); break;
+                    }
+                }
+
+                if (e.key >= '1' && e.key <= '9') {
+                    if (states.isLayingDown || states.isSittingOnToilet) return; 
+                    triggerSlotSelection(parseInt(e.key));
+                }
+            });
+
+            function triggerSlotSelection(slotId) {
+                document.getElementById(`slot-${activeSlot}`).classList.remove('active');
+                activeSlot = slotId;
+                document.getElementById(`slot-${activeSlot}`).classList.add('active');
+
+                if (activeSlot === 2 && states.phonePickedUp) {
+                    phoneWrapper.style.display = 'flex'; openPhoneApp('home', '');
+                } else { phoneWrapper.style.display = 'none'; }
+            }
+
+
+            window.addEventListener('keyup', (e) => {
+                const key = e.key.toLowerCase();
+                if (key in keys) keys[key] = false;
+                if (e.key in keys) keys[e.key] = false;
+            });
+
+            // --- Animation Rendering Pipeline ---
+            function animate() {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta();
+                if (delta > 0.1) return;
+
+                fanBladesSubGroup.rotation.y += delta * 2.8;
+
+                states.door.rot += (states.door.targetRot - states.door.rot) * 6.0 * delta; doorPivot.rotation.y = states.door.rot;
+                states.bathroomDoor.rot += (states.bathroomDoor.targetRot - states.bathroomDoor.rot) * 6.0 * delta; bathDoorPivot.rotation.y = states.bathroomDoor.rot;
+                states.shutters.rot += (states.shutters.targetRot - states.shutters.rot) * 5.0 * delta; leftShutterPivot.rotation.y = states.shutters.rot; rightShutterPivot.rotation.y = -states.shutters.rot;
+                states.shelf.pos += (states.shelf.targetPos - states.shelf.pos) * 5.0 * delta; shelfGroup.position.z = standZ + states.shelf.pos;
+
+
+                let closestDistance = Infinity; let activeId = null;
+                const playerFootPos = player.position.clone();
+
+                for (let i = 0; i < interactables.length; i++) {
+                    const obj = interactables[i]; if (obj.id === "phone" && states.phonePickedUp) continue;
+                    const distance = playerFootPos.distanceTo(obj.pos);
+                    if (distance < obj.radius && distance < closestDistance) { closestDistance = distance; activeId = obj.id; }
+                }
+
+                currentInteractable = activeId;
+                if (currentInteractable) {
+                    promptHUD.style.display = "block"; let actionText = "Interact";
+                    if (currentInteractable === "door") actionText = states.door.open ? "Close Entrance Door" : "Open Entrance Door";
+                    if (currentInteractable === "bathroomDoor") actionText = states.bathroomDoor.open ? "Close Bathroom Door" : "Open Bathroom Door";
+                    if (currentInteractable === "shutters") actionText = states.shutters.open ? "Close Window Shutters" : "Open Window Shutters";
+                    if (currentInteractable === "lightSwitch") actionText = states.lightSwitch.on ? "Turn Off House Lights" : "Turn On House Lights";
+                    if (currentInteractable === "bathroomLightSwitch") actionText = states.bathroomLightSwitch.on ? "Turn Off Bathroom Light" : "Turn On Bathroom Light";
+                    if (currentInteractable === "shelf") actionText = states.shelf.open ? "Close Drawer" : "Open Drawer";
+                    if (currentInteractable === "sink") actionText = states.sink.on ? "Turn Off Sink Water" : "Turn On Sink Water";
+
+                    if (currentInteractable === "phone") actionText = "Pick up Phone";
+                    if (currentInteractable === "bed") actionText = states.isLayingDown ? "Get Up from Bed" : "Lay Down on Bed";
+                    if (currentInteractable === "toilet") actionText = states.isSittingOnToilet ? "Stand Up from Toilet" : "Sit on Toilet";
+                    promptHUD.innerHTML = `Press <span style="color: #00ffcc;">E</span> to ${actionText}`;
+                } else { promptHUD.style.display = "none"; }
+
+                let pitchFactor = 0; let yawFactor = 0;
+                if (keys.ArrowUp) pitchFactor += 1; if (keys.ArrowDown) pitchFactor -= 1;
+                if (keys.ArrowLeft) yawFactor += 1; if (keys.ArrowRight) yawFactor -= 1;
+
+                player.rotation.y += yawFactor * lookSpeed * delta; player.rotation.x += pitchFactor * lookSpeed * delta;
+                player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
+
+                const lookQuat = new THREE.Quaternion();
+                const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.rotation.x);
+                lookQuat.multiplyQuaternions(yawQuat, pitchQuat); camera.quaternion.copy(lookQuat);
+
+                if (!states.isLayingDown && !states.isSittingOnToilet) {
+
+                    let currentMoveSpeed = player.speed;
+                    if (keys.Shift && player.isGrounded) currentMoveSpeed *= player.sprintMultiplier;
+                    if (keys.c) currentMoveSpeed *= player.crouchMultiplier;
+
+                    // Crouch mechanism logic: contracts target vertical camera level instantly
+                    const targetHeight = keys.c ? player.crouchHeight : player.height;
+                    player.currentHeight += (targetHeight - player.currentHeight) * 12.0 * delta;
+
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawQuat).normalize();
+                    const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(yawQuat).normalize();
+
+                    const moveDir = new THREE.Vector3();
+                    if (keys.w) moveDir.add(forward); if (keys.s) moveDir.add(forward.clone().negate());
+                    if (keys.a) moveDir.add(rightVec.clone().negate()); if (keys.d) moveDir.add(rightVec);
+                    moveDir.normalize();
+
+                    player.velocity.x = moveDir.x * currentMoveSpeed; player.velocity.z = moveDir.z * currentMoveSpeed;
+                    const velocityLength = new THREE.Vector2(player.velocity.x, player.velocity.z).length();
+                    
+
+                    if (player.isGrounded) {
+                        player.velocity.y = 0; player.position.y = player.currentHeight; 
+                        if (keys.Space && !keys.c) { player.velocity.y = player.jumpForce; player.isGrounded = false; }
+                    } else {
+                        player.velocity.y -= player.gravity * delta; player.position.y += player.velocity.y * delta;
+                        if (player.position.y <= player.currentHeight) { player.position.y = player.currentHeight; player.isGrounded = true; }
+                    }
+
+                    if (velocityLength > 0.1 && player.isGrounded) {
+                        bobTime += delta * 12.0 * (keys.Shift ? 1.4 : 1.0);
+                        const bobX = Math.sin(bobTime * 0.5) * 0.06; const bobY = Math.abs(Math.sin(bobTime)) * 0.08;
+                        camera.position.set(player.position.x + bobX, player.position.y + bobY, player.position.z);
+                    } else { bobTime = 0; camera.position.copy(player.position); }
+
+                    const radius = 0.42;
+                    const nextX = player.position.x + player.velocity.x * delta;
+                    if (!checkCollisionMatrix(nextX, player.position.z, radius)) player.position.x = nextX;
+                    const nextZ = player.position.z + player.velocity.z * delta;
+                    if (!checkCollisionMatrix(player.position.x, nextZ, radius)) player.position.z = nextZ;
+
+                } else if (states.isLayingDown) {
+                    camera.position.set(bedX, 1.75, bedZ);
+                } else if (states.isSittingOnToilet) {
+                    camera.position.set(-4.0, 1.95, 10.6);
+                }
+
+                if (states.flashlightOn && activeSlot === 1) {
+                    flashlight.visible = true; flashlight.position.copy(camera.position);
+                    const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    flashlight.target.position.copy(camera.position).add(forwardVector);
+                } else { flashlight.visible = false; }
+
+                renderer.render(scene, camera);
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>
