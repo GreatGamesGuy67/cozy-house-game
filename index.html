@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced 3D Room - Refined Environment</title>
+    <title>Advanced 3D Room - Cozy house</title>
     <style>
         body {
             margin: 0;
@@ -680,7 +680,8 @@ window.addEventListener('keydown', triggerAmbientAudio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.shadowMap.type = THREE.PCFShadowMap; // Much faster, slightly harder edges
+
             renderer.toneMapping = THREE.LinearToneMapping;
             renderer.toneMappingExposure = 1.0;
             container.appendChild(renderer.domElement);
@@ -749,11 +750,61 @@ window.addEventListener('keydown', triggerAmbientAudio);
             
             // Fixed: Created a smooth texture map for bathroom walls to prevent rigid predictions
             const bathPlasterMat = new THREE.MeshStandardMaterial({
-                color: 0xa4b9b7, roughness: 0.85, metalness: 0.0, bumpMap: paintGrainTex, bumpScale: 0.005, shadowSide: THREE.FrontSide
+                color: 0xc6a682, roughness: 0.85, metalness: 0.0, bumpMap: paintGrainTex, bumpScale: 0.005, shadowSide: THREE.FrontSide
             });
 
 
             // Structural Room Frame
+            // --- ROOF & CHIMNEY MATERIAL SETUP ---
+// Using a reddish-brown color with high roughness to mimic terracotta roofing tiles
+const roofMat = new THREE.MeshStandardMaterial({ 
+    color: 0x7a3a29, 
+    roughness: 0.85, 
+    metalness: 0.1 
+});
+
+// Using a dark grey brick tone for the chimney structure
+const chimneyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x444444, 
+    roughness: 0.9, 
+    metalness: 0.0 
+});
+
+// --- 1. TRIANGULAR TILING ROOF ---
+// A 4-sided cone gives us a perfect pyramid. We widen it slightly over the walls for a realistic overhang.
+const roofWidth = roomWidth + 0.8; // 16.8 wide
+const roofDepth = roomDepth + 0.8; // 24.8 deep
+const roofHeight = 4.0;            // Peak height of the triangle roof
+
+const roofGeom = new THREE.ConeGeometry(roofWidth / Math.sqrt(2), roofHeight, 4);
+const roof = new THREE.Mesh(roofGeom, roofMat);
+
+// Rotate the cone 45 degrees around Y so the flat sides align perfectly square with your walls
+roof.rotation.y = Math.PI / 4; 
+
+// Position: y sits on top of the walls (roomHeight) plus half of the roof's own height structure
+roof.position.set(0, roomHeight + (roofHeight / 2), 0);
+roof.castShadow = true;
+roof.receiveShadow = true;
+wallsGroup.add(roof);
+
+// --- 2. CHIMNEY STACK ---
+const chimneyHeight = 3.5;
+const chimneyGeom = new THREE.CylinderGeometry(0.5, 0.5, chimneyHeight, 8);
+const chimney = new THREE.Mesh(chimneyGeom, chimneyMat);
+
+// Offset the chimney to sit on the back-right slope of the roof structure
+chimney.position.set(roomWidth / 3, roomHeight + 2.0, -roomDepth / 3);
+chimney.castShadow = true;
+chimney.receiveShadow = true;
+wallsGroup.add(chimney);
+
+// --- 3. CHIMNEY CAP (Slightly wider top rim)
+const chimneyCapGeom = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 8);
+const chimneyCap = new THREE.Mesh(chimneyCapGeom, chimneyMat);
+chimneyCap.position.set(chimney.position.x, chimney.position.y + (chimneyHeight / 2) + 0.1, chimney.position.z);
+chimneyCap.castShadow = true;
+wallsGroup.add(chimneyCap);
             const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, roomDepth), tanWallMat); leftWall.position.set(-roomWidth/2, roomHeight/2, 0); leftWall.receiveShadow = true; leftWall.castShadow = true; wallsGroup.add(leftWall);
             const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, roomDepth), tanWallMat); rightWall.position.set(roomWidth/2, roomHeight/2, 0); rightWall.receiveShadow = true; rightWall.castShadow = true; wallsGroup.add(rightWall);
             const frontWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 0.2), tanWallMat); frontWall.position.set(0, roomHeight/2, roomDepth/2); frontWall.receiveShadow = true; frontWall.castShadow = true; wallsGroup.add(frontWall);
@@ -763,7 +814,29 @@ window.addEventListener('keydown', triggerAmbientAudio);
             const doorHeader = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 0.2), tanWallMat); doorHeader.position.set(-3.0, 6.0, -roomDepth/2); doorHeader.receiveShadow = true; wallsGroup.add(doorHeader);
             const windowFooter = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 0.2), tanWallMat); windowFooter.position.set(2.25, 1.0, -roomDepth/2); windowFooter.receiveShadow = true; windowFooter.castShadow = true; wallsGroup.add(windowFooter);
             const windowHeader = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 0.2), tanWallMat); windowHeader.position.set(2.25, 6.0, -roomDepth/2); windowHeader.receiveShadow = true; wallsGroup.add(windowHeader);
+            // --- THIN GLASS PANE ---
+// --- TINTED BLUE GLASS PANE ---
+const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x88ccff,       // Soft sky blue tint
+    transparent: true,
+    opacity: 0.4,          // Slightly higher opacity so the blue tint is visible
+    transmission: 0.55,    // Lowered slightly from 0.95 so the glass color filters the light passing through
+    roughness: 0.02,       // Highly polished and reflective
+    metalness: 0.0,
+    ior: 1.5,              
+    side: THREE.DoubleSide
+});
 
+// Thickness remains 0.02, which is significantly thinner than the 0.2 walls
+const glassPane = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 3.0, 0.02), 
+    glassMat
+);
+
+// Positioned right in the middle of the window gap
+glassPane.position.set(2.25, 3.5, -roomDepth / 2);
+
+wallsGroup.add(glassPane);
             // Bathroom Dividers wrapped in custom soft texture
             const bathWallV = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomHeight, 8.0), bathPlasterMat); bathWallV.position.set(-2.0, roomHeight/2, 8.0); bathWallV.castShadow = true; bathWallV.receiveShadow = true; wallsGroup.add(bathWallV);
             const bathWallH_Left = new THREE.Mesh(new THREE.BoxGeometry(2.0, roomHeight, 0.2), bathPlasterMat); bathWallH_Left.position.set(-7.0, roomHeight/2, 4.0); bathWallH_Left.castShadow = true; bathWallH_Left.receiveShadow = true; wallsGroup.add(bathWallH_Left);
@@ -978,8 +1051,9 @@ window.addEventListener('keydown', triggerAmbientAudio);
 
             // --- Ceiling Fan & Integrated Bulb Assembly ---
             const fanGroup = new THREE.Group(); fanGroup.position.set(0, roomHeight, 0);
-            const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 })); fanRod.position.y = -0.4; fanGroup.add(fanRod);
-            const fanMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.22, 16), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.5 })); fanMotor.position.y = -0.8; fanMotor.castShadow = true; fanGroup.add(fanMotor);
+            const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.1 })); fanRod.position.y = -0.4; fanGroup.add(fanRod);
+            const fanMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.22, 16), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.9, roughness: 0.3 })); fanMotor.position.y = -0.8; fanMotor.castShadow = false; fanGroup.add(fanMotor);
+
 
             const fanBladesSubGroup = new THREE.Group(); fanBladesSubGroup.position.y = -0.8;
             for (let i = 0; i < 4; i++) {
@@ -1002,7 +1076,7 @@ window.addEventListener('keydown', triggerAmbientAudio);
 
             // --- Illumination Core ---
             const ceilingLight = new THREE.PointLight(0xffffff, 0.8, 48, 1.1); ceilingLight.position.set(0, roomHeight - 1.0, 0); ceilingLight.castShadow = true;
-            ceilingLight.shadow.mapSize.width = 1048; ceilingLight.shadow.mapSize.height = 1048; ceilingLight.shadow.bias = -0.0018; scene.add(ceilingLight);
+            ceilingLight.shadow.mapSize.width = 512; ceilingLight.shadow.mapSize.height = 512; ceilingLight.shadow.bias = -0.0018; ceilingLight.shadow.radius = 4; scene.add(ceilingLight);
 
             // Added independent bathroom ceiling loop point light instance
             const bathCeilingLight = new THREE.PointLight(0xffffff, 0.75, 16, 1.1);
@@ -1056,6 +1130,7 @@ colliders.push({ minX: -12.2, maxX: 12.2, minZ: -22.5, maxZ: -22.2 });
                 colliders.push({ minX: 1.25, maxX: 2.75, minZ: 10.25, maxZ: 11.75 }); 
                 colliders.push({ minX: -7.9, maxX: -5.8, minZ: 7.35, maxZ: 8.65 });   
                 if (!states.isSittingOnToilet) colliders.push({ minX: -4.4, maxX: -3.6, minZ: 10.2, maxZ: 11.4 });  
+                colliders.push({ minX: -8.0, maxX: -7.2, minZ: -1.75, maxZ: 1.75 });
             }
             updateCollidersList();
 //here
@@ -1162,13 +1237,28 @@ spawnSpreadOutBackgroundForest(25);
                         case "sink":
 
                             states.sink.on = !states.sink.on; waterStream.visible = states.sink.on; break;
-                        case "phone":
-                            if (!states.phonePickedUp) {
-                                states.phonePickedUp = true; scene.remove(phoneGroup);
-                                inventory[2] = "phone"; document.getElementById("icon-2").innerText = "📱";
-                                triggerSlotSelection(2);
-                            }
-                            break;
+case "phone": 
+    if (!states.phonePickedUp) { 
+        states.phonePickedUp = true; 
+        
+        // 1. Remove from visual rendering engine
+        scene.remove(phoneGroup); 
+        
+        // 2. 🚀 THE FIX: Splice it out of the array so your loop skips it entirely!
+        for (let i = 0; i < interactables.length; i++) {
+            if (interactables[i].id === "phone") {
+                interactables.splice(i, 1); 
+                break; // Stop looking once removed
+            }
+        }
+
+        // 3. Update inventory UI
+        inventory[2] = "phone"; 
+        document.getElementById("icon-2").innerText = "📱"; 
+        triggerSlotSelection(2); 
+    } 
+    break;
+
                         case "bed":
                             states.isLayingDown = !states.isLayingDown;
                             if (states.isLayingDown) {
@@ -1190,7 +1280,102 @@ spawnSpreadOutBackgroundForest(25);
                     triggerSlotSelection(parseInt(e.key));
                 }
             });
+//book
+            //mirror
+            // --- FIXED NON-INTERACTIVE BOOKSHELF ---
+// --- NEW HOLLOW STRUCTURE BOOKSHELF ---
+const staticBookshelf = new THREE.Group();
 
+// Dark wood material
+const staticWoodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e1b, roughness: 0.7, metalness: 0.1 });
+const staticPagesMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9 });
+
+// Dimensions of the total shelving unit
+const shelfH = 6.0;   // Height
+const shelfW = 3.5;   // Total width along the wall
+const shelfD = 0.8;   // Depth sticking out from the wall
+const thick = 0.06;   // Thickness of the wood boards
+
+// 1. LEFT SIDE BOARD Panel
+const leftSide = new THREE.Mesh(new THREE.BoxGeometry(shelfD, shelfH, thick), staticWoodMat);
+leftSide.position.set(0, shelfH / 2, -shelfW / 2 + thick / 2);
+leftSide.castShadow = true;
+leftSide.receiveShadow = true;
+staticBookshelf.add(leftSide);
+
+// 2. RIGHT SIDE BOARD Panel
+const rightSide = new THREE.Mesh(new THREE.BoxGeometry(shelfD, shelfH, thick), staticWoodMat);
+rightSide.position.set(0, shelfH / 2, shelfW / 2 - thick / 2);
+rightSide.castShadow = true;
+rightSide.receiveShadow = true;
+staticBookshelf.add(rightSide);
+
+// 3. SOLID BACKBOARD (Closes off the back against the wall panel)
+const backboard = new THREE.Mesh(new THREE.BoxGeometry(thick, shelfH, shelfW), staticWoodMat);
+backboard.position.set(-shelfD / 4 + thick / 2, shelfH / 2, 0);
+backboard.castShadow = true;
+backboard.receiveShadow = true;
+staticBookshelf.add(backboard);
+
+// 4. TOP CAP PIECE
+const topCap = new THREE.Mesh(new THREE.BoxGeometry(shelfD, thick, shelfW), staticWoodMat);
+topCap.position.set(0, shelfH - thick / 2, 0);
+topCap.castShadow = true;
+staticBookshelf.add(topCap);
+
+// 5. BOTTOM BASE TRIM (Thicker footer shelf piece)
+const bottomBase = new THREE.Mesh(new THREE.BoxGeometry(shelfD - thick, 0.3, shelfW - thick * 2), staticWoodMat);
+bottomBase.position.set(thick / 2, 0.15, 0);
+bottomBase.castShadow = true;
+bottomBase.receiveShadow = true;
+staticBookshelf.add(bottomBase);
+
+// 6. THREE INTERIOR PLANK SHELVES (Creates the true empty indented tiers)
+const shelfYPositions = [1.8, 3.2, 4.6]; // Distinct heights for your 3 open rows
+shelfYPositions.forEach(y => {
+    const shelfPlank = new THREE.Mesh(new THREE.BoxGeometry(shelfD - thick, thick, shelfW - thick * 2), staticWoodMat);
+    shelfPlank.position.set(thick / 2, y, 0);
+    shelfPlank.castShadow = true;
+    shelfPlank.receiveShadow = true;
+    staticBookshelf.add(shelfPlank);
+});
+
+// --- POPULATING THE HOLLOW INDENTS WITH ROWS OF BOOKS ---
+const sColors = [0xb22222, 0x228b22, 0x1e90ff, 0xdaa520, 0x4b0082];
+
+// Loop through each physical horizontal plank layer
+shelfYPositions.forEach(yPos => {
+    let zCursor = -shelfW / 2 + 0.15; // Start stacking rows inside the left panel wall limit
+    const zMaxLimit = shelfW / 2 - 0.15; // End right before hitting the right side panel
+    
+    while (zCursor < zMaxLimit) {
+        const bWidth = 0.06 + Math.random() * 0.04;
+        const bHeight = 0.5 + Math.random() * 0.15;
+        const bDepth = shelfD - 0.18; // Fits neatly inside the open structural frame indentation
+        
+        const randomColor = sColors[Math.floor(Math.random() * sColors.length)];
+        const bookMat = new THREE.MeshStandardMaterial({ color: randomColor, roughness: 0.6 });
+        const mats = [bookMat, bookMat, bookMat, bookMat, staticPagesMat, staticPagesMat];
+        
+        const bookObj = new THREE.Mesh(new THREE.BoxGeometry(bDepth, bHeight, bWidth), mats);
+        
+        // Position inside the shell frame: pushed up from the shelf board and out toward the room side front
+        bookObj.position.set(0.04, yPos + thick / 2 + bHeight / 2, zCursor + bWidth / 2);
+        bookObj.castShadow = true;
+        staticBookshelf.add(bookObj);
+        
+        zCursor += bWidth + 0.01; // Spacing step accumulator gap
+    }
+});
+
+// --- ROTATION CONTROL ---
+// Set to 0 if facing one way; change to Math.PI if you want to flip it to look the completely opposite direction!
+staticBookshelf.rotation.y = 0; 
+
+// --- WORLD PLACEMENT ---
+// Placed flush against your left wall alignment profile grid
+staticBookshelf.position.set((-roomWidth / 2) + shelfD / 2, 0, 0); 
+wallsGroup.add(staticBookshelf);
             function triggerSlotSelection(slotId) {
                 document.getElementById(`slot-${activeSlot}`).classList.remove('active');
                 activeSlot = slotId;
@@ -1207,9 +1392,105 @@ spawnSpreadOutBackgroundForest(25);
                 if (key in keys) keys[key] = false;
                 if (e.key in keys) keys[e.key] = false;
             });
+//clock=======================
+            // --- VISUAL WALL CLOCK CREATION ---
+const wallClockGroup = new THREE.Group();
 
+// 1. Clock Outer Frame (Dark Metallic Rim)
+const clockFrameGeom = new THREE.CylinderGeometry(0.6, 0.6, 0.1, 32);
+const clockFrameMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 });
+const clockFrame = new THREE.Mesh(clockFrameGeom, clockFrameMat);
+clockFrame.rotation.x = Math.PI / 2; // Rotate flat against the wall
+wallClockGroup.add(clockFrame);
+
+// 2. Clock Face (White Inside)
+const clockFaceGeom = new THREE.CylinderGeometry(0.52, 0.52, 0.11, 32);
+const clockFaceMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
+const clockFace = new THREE.Mesh(clockFaceGeom, clockFaceMat);
+clockFace.rotation.x = Math.PI / 2;
+wallClockGroup.add(clockFace);
+
+// --- HANDS & CONTAINERS ---
+// Shared materials
+const blackHandMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+const redHandMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.5 });
+
+// Hour Hand setup
+const hourHandGroup = new THREE.Group();
+const hourHandMesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.25, 0.02), blackHandMat);
+hourHandMesh.position.y = 0.125; // Offset mesh so it rotates around the center pivot
+hourHandGroup.add(hourHandMesh);
+hourHandGroup.position.z = 0.061;
+wallClockGroup.add(hourHandGroup);
+
+// Minute Hand setup
+const minuteHandGroup = new THREE.Group();
+const minuteHandMesh = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.02), blackHandMat);
+minuteHandMesh.position.y = 0.21; // Offset mesh so it rotates around the center pivot
+minuteHandGroup.add(minuteHandMesh);
+minuteHandGroup.position.z = 0.063;
+wallClockGroup.add(minuteHandGroup);
+
+// Second Hand setup (Very thin red bar)
+const secondHandGroup = new THREE.Group();
+const secondHandMesh = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.45, 0.01), redHandMat);
+secondHandMesh.position.y = 0.18; // Offset mesh so it rotates around the center pivot
+secondHandGroup.add(secondHandMesh);
+secondHandGroup.position.z = 0.065; // Sit slightly in front of other hands to avoid overlapping clipping
+wallClockGroup.add(secondHandGroup);
+
+// Center Pin cap
+const centerPin = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16), redHandMat);
+centerPin.rotation.x = Math.PI / 2;
+centerPin.position.z = 0.066;
+wallClockGroup.add(centerPin);
+
+// --- CLOCK NUMBERS (1 to 12 ticks) ---
+// Using small 3D cubes/bars to cleanly represent hour markers 1 through 12 on the face
+for (let i = 1; i <= 12; i++) {
+    const angle = (i * Math.PI) / 6; // Space them evenly 30 degrees apart
+    const isMajor = (i % 3 === 0);   // Make 12, 3, 6, and 9 larger
+    
+    const markerGeom = new THREE.BoxGeometry(
+        isMajor ? 0.03 : 0.015, 
+        isMajor ? 0.08 : 0.05, 
+        0.01
+    );
+    const markerMesh = new THREE.Mesh(markerGeom, blackHandMat);
+    
+    // Position around the circle circle radius
+    const radius = 0.42;
+    markerMesh.position.set(Math.sin(angle) * radius, Math.cos(angle) * radius, 0.056);
+    markerMesh.rotation.z = -angle; // Face them toward the center
+    
+    wallClockGroup.add(markerMesh);
+}
+
+// --- POSITIONING ON THE WALL ---
+wallClockGroup.position.set(backWallR.position.x, roomHeight - 2, (-roomDepth / 2) + 0.15);
+
+clockFrame.castShadow = true;
+clockFrame.receiveShadow = true;
+clockFace.receiveShadow = true;
+
+wallsGroup.add(wallClockGroup);
+//clock=============
             // --- Animation Rendering Pipeline ---
+            
             function animate() {
+                // --- CLOCK TICKING LOGIC ---
+const now = new Date();
+const hours = now.getHours();
+const minutes = now.getMinutes();
+const seconds = now.getSeconds();
+const milliseconds = now.getMilliseconds();
+
+// Smooth movement for hour and minute hands
+hourHandGroup.rotation.z = -((hours % 12) * 30 + minutes * 0.5) * (Math.PI / 180);
+minuteHandGroup.rotation.z = -(minutes * 6 + seconds * 0.1) * (Math.PI / 180);
+
+// Crisp, instant tick for the second hand 
+secondHandGroup.rotation.z = -(seconds * 6) * (Math.PI / 180);
                 requestAnimationFrame(animate);
                 const delta = clock.getDelta();
                 if (delta > 0.1) return;
