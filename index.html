@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced 3D Room - Cozy house</title>
+    <title>Advanced 3D Room - Refined Environment</title>
     <style>
         body {
             margin: 0;
@@ -1571,11 +1571,25 @@ secondHandGroup.rotation.z = -(seconds * 6) * (Math.PI / 180);
                         if (player.position.y <= player.currentHeight) { player.position.y = player.currentHeight; player.isGrounded = true; }
                     }
 
-                    if (velocityLength > 0.1 && player.isGrounded) {
-                        bobTime += delta * 12.0 * (keys.Shift ? 1.4 : 1.0);
-                        const bobX = Math.sin(bobTime * 0.5) * 0.06; const bobY = Math.abs(Math.sin(bobTime)) * 0.08;
-                        camera.position.set(player.position.x + bobX, player.position.y + bobY, player.position.z);
-                    } else { bobTime = 0; camera.position.copy(player.position); }
+                    if (velocityLength > 0.1 && player.isGrounded) { 
+    // 1. Calculate bobbing normally when walking
+    bobTime += delta * 12.0 * (keys.Shift ? 1.4 : 1.0); 
+    const bobX = Math.sin(bobTime * 0.5) * 0.06; 
+    const bobY = Math.abs(Math.sin(bobTime)) * 0.08; 
+    
+    // Update camera position
+    camera.position.set(player.position.x + bobX, player.position.y + bobY, player.position.z); 
+
+} else { 
+    // 2. 🚀 THE PERFORMANCE WIN: Only reset if the player was previously moving!
+    if (bobTime !== 0) {
+        bobTime = 0; 
+        camera.position.copy(player.position); // Set it exactly ONCE on stop
+    }
+    // When bobTime is already 0 and you are standing still, this entire block is skipped.
+    // Three.js will reuse the previous frame's camera matrix instantly, saving massive CPU cycles!
+}
+
 
                     const radius = 0.42;
                     const nextX = player.position.x + player.velocity.x * delta;
